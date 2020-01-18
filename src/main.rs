@@ -196,7 +196,9 @@ fn shared_spans(added_tokens: &Tokenization, diff_buffer: &Vec<Snake>) -> Vec<Ha
     shared_spans
 }
 
-const MAX_MARGIN: usize = 41;
+const MIN_COL_WIDTH: usize = 3;
+const MAX_MARGIN: usize = 42;
+const MIN_MARGIN: usize = MIN_COL_WIDTH * 2 + 2;
 
 impl<'a> HunkBuffer<'a> {
     fn new(config: &'a AppConfig) -> Self {
@@ -288,16 +290,17 @@ impl<'a> HunkBuffer<'a> {
         let (mut current_line_minus, mut current_line_plus, margin, half_margin) =
             match line_number_info {
                 Some(lni) => {
-                    let full_margin = lni.width();
-                    let half_margin = full_margin / 2;
+                    let full_margin = lni.width().max(MIN_MARGIN);
+                    let half_margin = (full_margin - 2) / 2;
 
-                    // If line number is 0, the column is empty and
-                    // shouldn't be printed
-                    let margin_size = if lni.minus_range.0 == 0 || lni.plus_range.0 == 0 {
-                        half_margin
-                    } else {
-                        full_margin
-                    };
+                    // // If line number is 0, the column is empty and
+                    // // shouldn't be printed
+                    // let margin_size = if lni.minus_range.0 == 0 || lni.plus_range.0 == 0 {
+                    //     half_margin
+                    // } else {
+                    //     full_margin
+                    // };
+                    let margin_size = full_margin;
                     assert!(margin.len() >= margin_size);
                     (
                         lni.minus_range.0,
@@ -354,16 +357,20 @@ impl<'a> HunkBuffer<'a> {
                     if config.line_numbers {
                         let mut margin_buf = &mut margin[..];
                         if is_plus {
-                            if current_line_minus != 0 {
-                                write!(margin_buf, "{:w$} ", ' ', w = half_margin)?;
-                            }
-                            write!(margin_buf, "{:w$}", current_line_plus, w = half_margin)?;
+                            // if current_line_minus != 0 {
+                            //     write!(margin_buf, "{:w$} ", ' ', w = half_margin)?;
+                            // }
+                            // write!(margin_buf, "{:w$}", current_line_plus, w = half_margin)?;
+                            write!(margin_buf, "{:w$}", ' ', w = half_margin)?;
+                            write!(margin_buf, " {:w$} ", current_line_plus, w = half_margin)?;
                             current_line_plus += 1;
                         } else {
+                            // write!(margin_buf, "{:w$}", current_line_minus, w = half_margin)?;
+                            // if current_line_plus != 0 {
+                            //     write!(margin_buf, " {:w$}", ' ', w = half_margin)?;
+                            // }
                             write!(margin_buf, "{:w$}", current_line_minus, w = half_margin)?;
-                            if current_line_plus != 0 {
-                                write!(margin_buf, " {:w$}", ' ', w = half_margin)?;
-                            }
+                            write!(margin_buf, " {:w$} ", ' ', w = half_margin)?;
                             current_line_minus += 1;
                         };
                         output(margin, 0, margin.len(), &nohighlight, out)?
@@ -385,7 +392,7 @@ impl<'a> HunkBuffer<'a> {
                         } else {
                             write!(out, "{:w$}", ' ', w = half_margin)?;
                         }
-                        write!(out, " {:w$}", current_line_plus, w = half_margin)?;
+                        write!(out, " {:w$} ", current_line_plus, w = half_margin)?;
                     }
                     current_line_minus += 1;
                     current_line_plus += 1;
@@ -615,7 +622,7 @@ impl HunkHeader {
     fn width(&self) -> usize {
         2 * width1(self.minus_range.0 + self.minus_range.1)
             .max(width1(self.plus_range.0 + self.plus_range.1))
-            + 1
+            + 2
     }
 }
 
